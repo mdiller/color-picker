@@ -5,6 +5,7 @@ import svgLoader from "vite-svg-loader"
 
 /** @type {import("vite").UserConfig} */
 export default defineConfig({
+	base: "./",
 	plugins: [
 		vue(),
 		svgLoader()
@@ -13,7 +14,13 @@ export default defineConfig({
 	build: {
 		minify: false,
 		outDir: resolve(__dirname, "build"),
-		emptyOutDir: true
+		emptyOutDir: true,
+		rollupOptions: {
+			output: {
+				
+				sourcemapBaseUrl: "https://example.com"
+			}
+		}
 	},
 	server: {
 		open: true
