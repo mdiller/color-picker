@@ -8,55 +8,45 @@
 		</div>
 		<gradient-slider
 			v-model:value="color.r"
-			color1="rgba(  0, var(--color-g), var(--color-b), var(--slider-opacity))"
-			color2="rgba(255, var(--color-g), var(--color-b), var(--slider-opacity))"
-			:min="0"
-			:max="255"
+			color_template="rgba({value}, var(--color-g), var(--color-b), var(--slider-opacity))"
+			:min="0" :max="255"
 		/>
 		<gradient-slider
 			v-model:value="color.g"
-			color1="rgba(var(--color-r),   0, var(--color-b), var(--slider-opacity))"
-			color2="rgba(var(--color-r), 255, var(--color-b), var(--slider-opacity))"
-			:min="0"
-			:max="255"
+			color_template="rgba(var(--color-r), {value}, var(--color-b), var(--slider-opacity))"
+			:min="0" :max="255"
 		/>
 		<gradient-slider
 			v-model:value="color.b"
-			color1="rgba(var(--color-r), var(--color-g),   0, var(--slider-opacity))"
-			color2="rgba(var(--color-r), var(--color-g), 255, var(--slider-opacity))"
-			:min="0"
-			:max="255"
+			color_template="rgba(var(--color-r), var(--color-g), {value}, var(--slider-opacity))"
+			:min="0" :max="255"
 		/>
 		<br/>
 		<gradient-slider
 			v-model:value="color.h"
-			color1="hsla(0, var(--color-s), var(--color-v), var(--slider-opacity))"
-			color2="hsla(356, var(--color-s), var(--color-v), var(--slider-opacity))"
-			:min="0"
-			:max="356"
+			color_template="hsla({value}, var(--color-s), var(--color-l), var(--slider-opacity))"
+			:color_nodes="7"
+			:min="0" :max="356"
 		/>
 		<gradient-slider
 			v-model:value="color.s"
-			color1="hsla(var(--color-h),   0%, var(--color-v), var(--slider-opacity))"
-			color2="hsla(var(--color-h), 100%, var(--color-v), var(--slider-opacity))"
+			color_template="hsla(var(--color-h), {value}%, var(--color-l), var(--slider-opacity))"
 			:is_percent="true"
-			:min="0"
-			:max="100"
+			:min="0" :max="100"
 		/>
 		<gradient-slider
-			v-model:value="color.v"
-			color1="hsla(var(--color-h), var(--color-s), 0%, var(--slider-opacity))"
-			color2="hsla(var(--color-h), var(--color-s), 100%, var(--slider-opacity))"
+			v-model:value="color.l"
+			color_template="hsla(var(--color-h), var(--color-s), {value}%, var(--slider-opacity))"
+			:color_nodes="3"
 			:is_percent="true"
-			:min="0"
-			:max="100"
+			:min="0" :max="100"
 		/>
 	</div>
 </template>
 
 <script>
-import DillermNavBar from "@dillerm/webutils/src/components/DillermNavBar.vue"
-import { rgbToHex, rgbToHsv, hsvToRgb } from "@dillerm/webutils/src/utils.js"
+import DillermNavBar from "@dillerm/webutils/src/components/DillermNavBar.vue";
+import { rgbToHex, rgbToHsl, hslToRgb } from "@dillerm/webutils/src/utils.js";
 
 
 import GradientSlider from "./components/GradientSlider.vue";
@@ -66,7 +56,7 @@ var COLOR_PROP_MAP = {
 	b: "--color-b",
 	h: "--color-h",
 	s: "--color-s",
-	v: "--color-v",
+	l: "--color-l",
 	hex: "--color-hex"
 }
 
@@ -82,12 +72,12 @@ export default {
 				github_url: "https://github.com/mdiller/color-editor"
 			},
 			color: {
-				r: 55,
-				g: 44,
-				b: 22,
-				h: 100,
-				s: 50,
-				v: 20,
+				r: 0,
+				g: 75,
+				b: 125,
+				h: 0,
+				s: 0,
+				l: 0,
 				hex: ""
 			},
 			shown_color: {},
@@ -105,7 +95,7 @@ export default {
 						if ((typeof color) == "number") {
 							color = color.toFixed();
 						}
-						if (["s", "v"].includes(prop)) {
+						if (["s", "l"].includes(prop)) {
 							color = `${color}%`;
 						}
 						// console.log("setting", COLOR_PROP_MAP[prop], color)
@@ -124,18 +114,16 @@ export default {
 				changed_keys = Object.keys(COLOR_PROP_MAP).filter(prop => this.color[prop] != this.shown_color[prop])
 			}
 			if (changed_keys.length > 0) {
-				console.log("reCalculateColors()", changed_keys)
 				if (changed_keys.filter(key => [ "r", "g", "b" ].includes(key)).length > 0) {
-					Object.assign(this.color, rgbToHsv(this.color));
+					Object.assign(this.color, rgbToHsl(this.color));
 				}
 				else {
-					Object.assign(this.color, hsvToRgb(this.color));
+					Object.assign(this.color, hslToRgb(this.color));
 				}
-
 				this.color.hex = rgbToHex({
-					r: this.color.r.toFixed(),
-					g: this.color.g.toFixed(),
-					b: this.color.b.toFixed()
+					r: Math.round(this.color.r),
+					g: Math.round(this.color.g),
+					b: Math.round(this.color.b)
 				});
 			}
 		}

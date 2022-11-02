@@ -11,13 +11,14 @@ import DillermSlider from "@dillerm/webutils/src/components/controls/DillermSlid
 export default {
 	name: 'gradient-slider',
 	props: {
-		color1: {
+		color_template: {
 			type: String,
 			required: true
 		},
-		color2: {
-			type: String,
-			required: true
+		color_nodes: {
+			type: Number,
+			required: false,
+			default: 2
 		}
 	},
 	components: {
@@ -25,8 +26,14 @@ export default {
 	},
 	methods: {
 		applyColors() {
-			this.$el.style.setProperty("--gradient-color1", this.color1);
-			this.$el.style.setProperty("--gradient-color2", this.color2);
+			var gradient_nodes = [];
+			for (let i = 0; i < this.color_nodes; i++) {
+				var value = ((i / (this.color_nodes - 1)) * (this.$attrs.max - this.$attrs.min)) + this.$attrs.min;
+				gradient_nodes.push(this.color_template.replace("{value}", value.toFixed()))
+			}
+			this.$el.style.setProperty("--gradient-start", gradient_nodes[0]);
+			this.$el.style.setProperty("--gradient-end", gradient_nodes[gradient_nodes.length - 1]);
+			this.$el.style.setProperty("--gradient-full", `linear-gradient(to right, ${gradient_nodes.join(", ")})`);
 		}
 	},
 	mounted() {
@@ -44,16 +51,16 @@ export default {
 }
 
 .slider-bar-back {
-	background: linear-gradient(to right, var(--gradient-color1), var(--gradient-color2));
+	background: var(--gradient-full);
 }
 
 .slider-bar-prefix {
 	opacity: 1 !important;
-	background: var(--gradient-color1) !important;
+	background: var(--gradient-start) !important;
 }
 
 .slider-bar-postfix {
-	background: var(--gradient-color2) !important;
+	background: var(--gradient-end) !important;
 }
 
 </style>
