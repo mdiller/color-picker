@@ -1,0 +1,5 @@
+node_modules
+build
+_*.md
+temp.json
+_scripts/
