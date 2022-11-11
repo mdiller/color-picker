@@ -47,10 +47,6 @@
 			:is_percent="true"
 			:min="0" :max="100"
 		/>
-		<!-- <dillerm-numerical :integer="false" v-model:value="rotateX" />
-		<dillerm-numerical :integer="false" v-model:value="rotateY" />
-		<dillerm-numerical :integer="false" v-model:value="rotateZ" />
-		<br /> -->
 		<color-cube
 			:h="color.h"
 			:s="color.s"
@@ -102,10 +98,7 @@ export default {
 			shown_color: {},
 			slider_val: 55,
 			handling_change: false,
-			image: null,
-			rotateX: 0,
-			rotateY: 0,
-			rotateZ: 0
+			image: null
 		}
 	},
 	methods: {
@@ -196,12 +189,6 @@ export default {
 				g: data[1],
 				b: data[2]
 			}));
-		},
-		doThing() {
-			var root = document.documentElement;
-			root.style.setProperty("--cube-rotate-x", this.rotateX * 45 + "deg");
-			root.style.setProperty("--cube-rotate-y", this.rotateY * 45 + "deg");
-			root.style.setProperty("--cube-rotate-z", this.rotateZ * 45 + "deg");
 		}
 	},
 	watch: {
@@ -217,15 +204,6 @@ export default {
 				this.handling_change = false;
 			},
 			deep: true
-		},
-		rotateX() {
-			this.doThing();
-		},
-		rotateY() {
-			this.doThing();
-		},
-		rotateZ() {
-			this.doThing();
 		}
 	},
 	mounted() {
@@ -233,8 +211,6 @@ export default {
 		this.reCalculateColors();
 		this.updateColorProps(true);
 		this.handling_change = false;
-
-		this.doThing();
 	}
 };
 
