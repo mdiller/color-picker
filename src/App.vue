@@ -1,6 +1,12 @@
 <template>
 	<DillermNavBar :config="config" />
+	<canvas @click="imageClicked" width="0" height="0" ref="canvas">
+	</canvas>
 	<div id="content" class="dillerm dillerm-content">
+		<input
+			type="file"
+			@change="uploadFile"
+			ref="file">
 		<div id="color-preview">
 			<div>
 				{{ color.hex }}
@@ -41,15 +47,26 @@
 			:is_percent="true"
 			:min="0" :max="100"
 		/>
+		<!-- <dillerm-numerical :integer="false" v-model:value="rotateX" />
+		<dillerm-numerical :integer="false" v-model:value="rotateY" />
+		<dillerm-numerical :integer="false" v-model:value="rotateZ" />
+		<br /> -->
+		<color-cube
+			:h="color.h"
+			:s="color.s"
+			:l="color.l" />
 	</div>
 </template>
 
 <script>
+import DillermNumerical from "@dillerm/webutils/src/components/controls/DillermNumerical.vue";
 import DillermNavBar from "@dillerm/webutils/src/components/DillermNavBar.vue";
-import { rgbToHex, rgbToHsl, hslToRgb } from "@dillerm/webutils/src/utils.js";
+import { rgbToHex, rgbToHsl, hslToRgb, hexToRgb } from "@dillerm/webutils/src/utils.js";
 
+var image_selector = document.getElementById("image-selector")
 
 import GradientSlider from "./components/GradientSlider.vue";
+import ColorCube from "./components/ColorCube.vue";
 var COLOR_PROP_MAP = {
 	r: "--color-r",
 	g: "--color-g",
@@ -62,8 +79,10 @@ var COLOR_PROP_MAP = {
 
 export default {
 	components: {
+		DillermNumerical,
 		DillermNavBar,
-		GradientSlider
+		GradientSlider,
+		ColorCube
 	},
 	data() {
 		return {
@@ -82,7 +101,11 @@ export default {
 			},
 			shown_color: {},
 			slider_val: 55,
-			handling_change: false
+			handling_change: false,
+			image: null,
+			rotateX: 0,
+			rotateY: 0,
+			rotateZ: 0
 		}
 	},
 	methods: {
@@ -94,6 +117,9 @@ export default {
 						this.shown_color[prop] = color;
 						if ((typeof color) == "number") {
 							color = color.toFixed();
+						}
+						if (prop == "l") {
+							this.$el.parentElement.style.setProperty("--color-l-decimal", `${(color / 100).toFixed(2)}`);
 						}
 						if (["s", "l"].includes(prop)) {
 							color = `${color}%`;
@@ -126,6 +152,56 @@ export default {
 					b: Math.round(this.color.b)
 				});
 			}
+		},
+		setColorHex(color) {
+			Object.assign(this.color, hexToRgb(color));
+		},
+		uploadFile() {
+			var file = this.$refs.file.files[0];
+			if (!file) {
+				return;
+			}
+			this.setColorHex("#00ff00")
+			
+			const reader = new FileReader();
+			reader.readAsDataURL(file);
+			var canvas = this.$refs.canvas;
+			reader.addEventListener("load", function() {
+				var img = new Image();
+				img.onload = () => {
+					var width = img.naturalWidth;
+					var height = img.naturalHeight;
+					canvas.width = width;
+					canvas.height = height;
+					canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+				}
+				img.src = this.result;
+			})
+		},
+		imageClicked(event) {
+			var canvas = this.$refs.canvas;
+			var canvasBounds = canvas.getBoundingClientRect();
+			var x = event.clientX - canvasBounds.left;
+			var y = event.clientY - canvasBounds.top;
+			var data = canvas.getContext('2d').getImageData(x, y, 1, 1).data;
+
+			// set color via rgb
+			Object.assign(this.color, {
+				r: data[0],
+				g: data[1],
+				b: data[2]
+			});
+			console.log(rgbToHex({
+				r: data[0],
+				g: data[1],
+				b: data[2]
+			}));
+		},
+		doThing() {
+			var root = document.documentElement;
+			root.style.setProperty("--cube-rotate-x", this.rotateX * 45 + "deg");
+			root.style.setProperty("--cube-rotate-y", this.rotateY * 45 + "deg");
+			root.style.setProperty("--cube-rotate-z", this.rotateZ * 45 + "deg");
 		}
 	},
 	watch: {
@@ -141,6 +217,15 @@ export default {
 				this.handling_change = false;
 			},
 			deep: true
+		},
+		rotateX() {
+			this.doThing();
+		},
+		rotateY() {
+			this.doThing();
+		},
+		rotateZ() {
+			this.doThing();
 		}
 	},
 	mounted() {
@@ -148,6 +233,8 @@ export default {
 		this.reCalculateColors();
 		this.updateColorProps(true);
 		this.handling_change = false;
+
+		this.doThing();
 	}
 };
 
@@ -164,6 +251,27 @@ export default {
 	max-width: 400px;
 }
 
+canvas {
+	margin: auto;
+	display: block;
+}
+
+input[type="file"] {
+	cursor: pointer;
+	width: 100%;
+	background-color: var(--input-background);
+	border: var(--input-border);
+	border-radius: var(--input-border-radius);
+	line-height: calc(var(--input-height) - 2 * var(--input-border-size));
+	padding: 0px 8px;
+}
+input[type="file"]::file-selector-button {
+	border: var(--input-border);
+	border-radius: var(--input-border-radius);
+	color: var(--input-color);
+	background-color: var(--background-color1);
+	padding: 5px;
+}
 
 #color-preview {
 	position: relative;
