@@ -126,7 +126,7 @@ export default {
 	width: 200px;
 	height: 200px;
 	opacity: 1;
-	border: 1px solid black;
+	/* border: 1px solid black; */
 	background-blend-mode: screen;
 }
 
