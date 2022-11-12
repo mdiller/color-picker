@@ -118,7 +118,7 @@ export default {
 		rotateY(-45deg) rotateZ(270deg)
 		rotate3d(1, 1, 1, calc((var(--color-h) * 1deg) - 60deg))
 		rotateY(-90deg);
-	/* transition: transform 0.5s; */
+	transition: transform var(--animation-time) linear;
 }
 
 .cube__face {

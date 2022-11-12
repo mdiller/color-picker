@@ -1,56 +1,83 @@
 <template>
 	<DillermNavBar :config="config" />
-	<canvas @click="imageClicked" width="0" height="0" ref="canvas">
-	</canvas>
-	<div id="content" class="dillerm dillerm-content">
-		<input
-			type="file"
-			@change="uploadFile"
-			ref="file">
-		<div id="color-preview">
-			<div>
-				{{ color.hex }}
+	<div id="container" class="dillerm">
+		<div>
+			<color-cube
+				:h="color.h"
+				:s="color.s"
+				:l="color.l" />
+			<canvas @click="imageClicked" width="0" height="0" ref="canvas">
+			</canvas>
+		</div>
+		<div>
+			<input
+				type="file"
+				@change="uploadFile"
+				ref="file">
+			<div id="color-preview">
+				<div>
+					{{ color.hex }}
+				</div>
+			</div>
+			<div class="combo-table">
+				<div>{{ rgb_text }}</div>
+				<span>R</span>
+				<gradient-slider
+					v-model:value="color.r"
+					color_template="rgba({value}, var(--color-g), var(--color-b), var(--slider-opacity))"
+					:min="0" :max="255"
+				/>
+				<span>G</span>
+				<gradient-slider
+					v-model:value="color.g"
+					color_template="rgba(var(--color-r), {value}, var(--color-b), var(--slider-opacity))"
+					:min="0" :max="255"
+				/>
+				<span>B</span>
+				<gradient-slider
+					v-model:value="color.b"
+					color_template="rgba(var(--color-r), var(--color-g), {value}, var(--slider-opacity))"
+					:min="0" :max="255"
+				/>
+			</div>
+			<br/>
+			<div class="combo-table">
+				<div>{{ hsl_text }}</div>
+				<span>H</span>
+				<gradient-slider
+					v-model:value="color.h"
+					color_template="hsla({value}, var(--color-s), var(--color-l), var(--slider-opacity))"
+					:color_nodes="7"
+					:min="0" :max="356"
+				/>
+				<span>S</span>
+				<gradient-slider
+					v-model:value="color.s"
+					color_template="hsla(var(--color-h), {value}%, var(--color-l), var(--slider-opacity))"
+					:is_percent="true"
+					:min="0" :max="100"
+				/>
+				<span>V</span>
+				<gradient-slider
+					v-model:value="color.l"
+					color_template="hsla(var(--color-h), var(--color-s), {value}%, var(--slider-opacity))"
+					:color_nodes="3"
+					:is_percent="true"
+					:min="0" :max="100"
+				/>
 			</div>
 		</div>
-		<gradient-slider
-			v-model:value="color.r"
-			color_template="rgba({value}, var(--color-g), var(--color-b), var(--slider-opacity))"
-			:min="0" :max="255"
-		/>
-		<gradient-slider
-			v-model:value="color.g"
-			color_template="rgba(var(--color-r), {value}, var(--color-b), var(--slider-opacity))"
-			:min="0" :max="255"
-		/>
-		<gradient-slider
-			v-model:value="color.b"
-			color_template="rgba(var(--color-r), var(--color-g), {value}, var(--slider-opacity))"
-			:min="0" :max="255"
-		/>
-		<br/>
-		<gradient-slider
-			v-model:value="color.h"
-			color_template="hsla({value}, var(--color-s), var(--color-l), var(--slider-opacity))"
-			:color_nodes="7"
-			:min="0" :max="356"
-		/>
-		<gradient-slider
-			v-model:value="color.s"
-			color_template="hsla(var(--color-h), {value}%, var(--color-l), var(--slider-opacity))"
-			:is_percent="true"
-			:min="0" :max="100"
-		/>
-		<gradient-slider
-			v-model:value="color.l"
-			color_template="hsla(var(--color-h), var(--color-s), {value}%, var(--slider-opacity))"
-			:color_nodes="3"
-			:is_percent="true"
-			:min="0" :max="100"
-		/>
-		<color-cube
-			:h="color.h"
-			:s="color.s"
-			:l="color.l" />
+		<div>
+			<h3>Similar Colors</h3>
+			<div
+				v-for="similar_color in similar_colors"
+				class="color-panel"
+				:style="{ background: similar_color.color.hex }">
+				<div>
+					{{ similar_color.color.name }}
+				</div>
+			</div>
+		</div>
 	</div>
 </template>
 
@@ -58,8 +85,7 @@
 import DillermNumerical from "@dillerm/webutils/src/components/controls/DillermNumerical.vue";
 import DillermNavBar from "@dillerm/webutils/src/components/DillermNavBar.vue";
 import { rgbToHex, rgbToHsl, hslToRgb, hexToRgb } from "@dillerm/webutils/src/utils.js";
-
-var image_selector = document.getElementById("image-selector")
+import COLOR_WORDS from "/color_words.json";
 
 import GradientSlider from "./components/GradientSlider.vue";
 import ColorCube from "./components/ColorCube.vue";
@@ -71,6 +97,40 @@ var COLOR_PROP_MAP = {
 	s: "--color-s",
 	l: "--color-l",
 	hex: "--color-hex"
+}
+
+
+function colorDist(c1, c2){
+	var dist = 0;
+	"rgb".split("").forEach(key => {
+		dist += (c1[key] - c2[key])*(c1[key] - c2[key]);
+	});
+	return Math.sqrt(dist);
+};
+
+function getClosestColor(color, words) {
+	var closest = null;
+	var closest_dist = 0;
+	words.forEach(color_word => {
+		var dist = colorDist(color, color_word);
+		if (closest == null || dist < closest_dist) {
+			closest = color_word;
+			closest_dist = dist;
+		}
+	});
+	return closest;
+}
+
+function initColorLookupTable(words) {
+	return Array.from(Object.keys(words).map(key => { 
+		var word_info = { name: key, hex: words[key] };
+		Object.assign(word_info, hexToRgb(word_info.hex));
+		return word_info;
+	}));
+}
+if (!Array.isArray(COLOR_WORDS.basic)) {
+	COLOR_WORDS.basic = initColorLookupTable(COLOR_WORDS.basic);
+	COLOR_WORDS.extended = initColorLookupTable(COLOR_WORDS.extended);
 }
 
 export default {
@@ -87,7 +147,7 @@ export default {
 				github_url: "https://github.com/mdiller/color-editor"
 			},
 			color: {
-				r: 0,
+				r: 18,
 				g: 75,
 				b: 125,
 				h: 0,
@@ -96,6 +156,7 @@ export default {
 				hex: ""
 			},
 			shown_color: {},
+			similar_colors: [], // holds the key and color of the most similar colors
 			slider_val: 55,
 			handling_change: false,
 			image: null
@@ -191,7 +252,23 @@ export default {
 			}));
 		}
 	},
+	computed: {
+		rgb_text() {
+			return `rgb(${this.color.r.toFixed()}, ${this.color.g.toFixed()}, ${this.color.b.toFixed()})`
+		},
+		hsl_text() {
+			return `hsl(${this.color.h.toFixed()}, ${this.color.s.toFixed()}%, ${this.color.l.toFixed()}%)`
+		}
+	},
 	watch: {
+		shown_color: {
+			handler() {
+				this.similar_colors.forEach(similar_color => {
+					similar_color.color = getClosestColor(this.shown_color, COLOR_WORDS[similar_color.key])
+				});
+			},	
+			deep: true
+		},
 		color: {
 			handler() {
 				if (this.handling_change) {
@@ -205,6 +282,14 @@ export default {
 			},
 			deep: true
 		}
+	},
+	created() {
+		Object.keys(COLOR_WORDS).forEach(key => {
+			this.similar_colors.push({
+				key: key,
+				color: COLOR_WORDS[key][0]
+			});
+		})
 	},
 	mounted() {
 		this.handling_change = true;
@@ -221,10 +306,55 @@ export default {
 
 :root {
 	--slider-opacity: 75%;
+	--animation-time: 0.15s;
 }
 
-#content {
-	max-width: 400px;
+#container {
+	width: 100%;
+	display: flex;
+}
+
+#container > div {
+	flex: 1;
+	padding: 10px 50px;
+}
+
+.combo-table > :first-child {
+	grid-column: span 2;
+	color: grey;
+	padding: 10px;
+	font-family: var(--input-numerical-font-family);
+	background: var(--background-color3);
+}
+
+.combo-table { 
+	display: grid;
+    grid-template-columns: 40px auto; 
+	background: var(--background-color2);
+	border: 2px solid var(--background-color3);
+	border-radius: 8px;
+}
+
+.combo-table > span {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.combo-table > div {
+	border-radius: 0px;
+}
+
+@media screen and (max-width: 700px) {
+	#container {
+		flex-direction: column;
+	}
+	#container > div {
+		padding: 10px;
+	}
+	#container > div:nth-child(2) {
+		order: -1;
+	}
 }
 
 canvas {
@@ -257,9 +387,11 @@ input[type="file"]::file-selector-button {
 	height: 100px;
 	border: 2px solid var(--background-color3);
 	margin-bottom: 10px;
+	transition: background var(--animation-time) linear;
 }
 
-#color-preview > div {
+#color-preview > div,
+.color-panel > div {
 	position: absolute;
 	left: 50%;
 	top: 50%;
@@ -268,6 +400,12 @@ input[type="file"]::file-selector-button {
 	color: white;
 	background: black;
 	opacity: 50%;
+}
+
+.color-panel {
+	position: relative;
+	border: 2px solid var(--background-color3);
+	height: 100px;
 }
 
 </style>

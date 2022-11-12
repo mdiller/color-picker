@@ -1,6 +1,7 @@
 <template>
 	<dillerm-slider 
 		@input="console.log('hi')"
+		:throttle="150"
 		v-bind="$attrs"
 	/>
 </template>
@@ -52,6 +53,7 @@ export default {
 
 .slider-bar-back {
 	background: var(--gradient-full);
+	transition: background var(--animation-time) linear;
 }
 
 .slider-bar-prefix {
@@ -61,6 +63,10 @@ export default {
 
 .slider-bar-postfix {
 	background: var(--gradient-end) !important;
+}
+
+.slider-bar:not(.dragging) .slider-bar-grabber {
+	transition: background var(--input-transition-time), transform 0.25s, left var(--animation-time) linear !important;
 }
 
 </style>
