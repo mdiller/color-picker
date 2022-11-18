@@ -210,13 +210,7 @@ export default {
 		setColorHex(color) {
 			Object.assign(this.color, hexToRgb(color));
 		},
-		uploadFile() {
-			var file = this.$refs.file.files[0];
-			if (!file) {
-				return;
-			}
-			this.setColorHex("#00ff00")
-			
+		loadImageFile(file) {
 			const reader = new FileReader();
 			reader.readAsDataURL(file);
 			var canvas = this.$refs.canvas;
@@ -230,7 +224,14 @@ export default {
 					canvas.getContext("2d").drawImage(img, 0, 0, width, height);
 				}
 				img.src = this.result;
-			})
+			});
+		},
+		uploadFile() {
+			var file = this.$refs.file.files[0];
+			if (!file) {
+				return;
+			}
+			this.loadImageFile(file);
 		},
 		imageClicked(event) {
 			var canvas = this.$refs.canvas;
@@ -250,6 +251,23 @@ export default {
 				g: data[1],
 				b: data[2]
 			}));
+		},
+		pasteHandler(event) {
+			var text = (event.clipboardData || window.clipboardData).getData('text');
+			var hex_pattern = /#?[0-9abcdef]{6}/i
+			if (text && hex_pattern.test(text)) {
+				if (!text[0] == "#") {
+					text = "#" + text;
+				}
+				this.setColorHex(text);
+			}
+			else {
+				var clip_data = (event.clipboardData || window.clipboardData);
+				if (clip_data.items.length > 0 && clip_data.items[0].type == "image/png") {
+					var file = clip_data.items[0].getAsFile();
+					this.loadImageFile(file);
+				}
+			}
 		}
 	},
 	computed: {
@@ -290,6 +308,9 @@ export default {
 				color: COLOR_WORDS[key][0]
 			});
 		})
+
+		document.removeEventListener('paste', this.pasteHandler);
+		document.addEventListener('paste', this.pasteHandler);
 	},
 	mounted() {
 		this.handling_change = true;
