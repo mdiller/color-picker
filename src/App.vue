@@ -57,7 +57,7 @@
 					:is_percent="true"
 					:min="0" :max="100"
 				/>
-				<span>V</span>
+				<span>L</span>
 				<gradient-slider
 					v-model:value="color.l"
 					color_template="hsla(var(--color-h), var(--color-s), {value}%, var(--slider-opacity))"
