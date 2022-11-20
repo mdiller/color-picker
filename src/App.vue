@@ -143,8 +143,8 @@ export default {
 	data() {
 		return {
 			config: {
-				title: "Color Editor",
-				github_url: "https://github.com/mdiller/color-editor"
+				title: "Color Helper",
+				github_url: "https://github.com/mdiller/color-helper"
 			},
 			color: {
 				r: 18,
