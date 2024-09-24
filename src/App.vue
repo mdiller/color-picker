@@ -6,14 +6,17 @@
 				:h="color.h"
 				:s="color.s"
 				:l="color.l" />
-			<canvas @click="imageClicked" width="0" height="0" ref="canvas">
-			</canvas>
-		</div>
-		<div>
 			<input
 				type="file"
 				@change="uploadFile"
-				ref="file">
+				ref="file"
+				accept=".png,.jpg,.jpeg">
+			<div id="pastedWrapper" :style="{ display: image != null ? 'block': 'none' }">
+				<canvas @click="imageClicked" @wheel="zoomCanvas" width="0" height="0" ref="canvas">
+				</canvas>
+			</div>
+		</div>
+		<div>
 			<div id="color-preview">
 				<div>
 					{{ color.hex }}
@@ -72,10 +75,14 @@
 			<div
 				v-for="similar_color in similar_colors"
 				class="color-panel"
+				@click="setColorHex(similar_color.color.hex)"
 				:style="{ background: similar_color.color.hex }">
 				<div>
 					{{ similar_color.color.name }}
 				</div>
+				<span>
+					{{ similar_color.key }}
+				</span>
 			</div>
 		</div>
 	</div>
@@ -102,7 +109,7 @@ var COLOR_PROP_MAP = {
 
 function colorDist(c1, c2){
 	var dist = 0;
-	"rgb".split("").forEach(key => {
+	"hsl".split("").forEach(key => {
 		dist += (c1[key] - c2[key])*(c1[key] - c2[key]);
 	});
 	return Math.sqrt(dist);
@@ -122,15 +129,19 @@ function getClosestColor(color, words) {
 }
 
 function initColorLookupTable(words) {
-	return Array.from(Object.keys(words).map(key => { 
+	return Array.from(Object.keys(words).map(key => {
 		var word_info = { name: key, hex: words[key] };
 		Object.assign(word_info, hexToRgb(word_info.hex));
+		Object.assign(word_info, rgbToHsl(word_info));
 		return word_info;
 	}));
 }
-if (!Array.isArray(COLOR_WORDS.basic)) {
-	COLOR_WORDS.basic = initColorLookupTable(COLOR_WORDS.basic);
-	COLOR_WORDS.extended = initColorLookupTable(COLOR_WORDS.extended);
+
+var color_words_keys = Object.keys(COLOR_WORDS);
+if (!Array.isArray(COLOR_WORDS[color_words_keys[0]])) {
+	color_words_keys.forEach(key => {
+		COLOR_WORDS[key] = initColorLookupTable(COLOR_WORDS[key]);
+	})
 }
 
 export default {
@@ -159,7 +170,10 @@ export default {
 			similar_colors: [], // holds the key and color of the most similar colors
 			slider_val: 55,
 			handling_change: false,
-			image: null
+			image: null,
+			image_zoom: 1.0,
+			originX: 0,
+			originY: 0
 		}
 	},
 	methods: {
@@ -210,18 +224,75 @@ export default {
 		setColorHex(color) {
 			Object.assign(this.color, hexToRgb(color));
 		},
+		// zoomCanvas(zoom_amount) {
+		// 	var canvas = this.$refs.canvas;
+		// 	var ctx = canvas.getContext("2d");
+		// 	ctx.imageSmoothingEnabled = false;
+		// 	ctx.scale(zoom_amount, zoom_amount);
+		// 	ctx.drawImage(this.image, 0, 0, this.image.naturalWidth, this.image.naturalHeight);
+		// },
+		drawCanvas() {
+			const canvas = this.$refs.canvas;
+			if (canvas == null) {
+				return;
+			}
+			const ctx = canvas.getContext("2d");
+			canvas.width = this.image.naturalWidth * this.image_zoom;
+			canvas.height = this.image.naturalHeight * this.image_zoom;
+			// ctx.setTransform(this.image_zoom, 0, 0, this.image_zoom, this.originX, this.originY);
+			// ctx.clearRect(0, 0, canvas.width, canvas.height);
+			// ctx.drawImage(this.image, 0, 0);
+			ctx.imageSmoothingEnabled = false;
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			ctx.save();
+			console.log("origins:", this.originX, this.originY);
+			ctx.translate(0 - this.originX, 0 - this.originY);
+			ctx.scale(this.image_zoom, this.image_zoom);
+			ctx.drawImage(this.image, 0, 0);
+		},
+		zoomCanvas(event) {
+			event.preventDefault();
+			const canvas = this.$refs.canvas;
+			const ctx = canvas.getContext("2d");
+			const scaleAmount = 0.4;
+			const mouseX = event.offsetX / this.image_zoom + this.originX / this.image_zoom;
+			const mouseY = event.offsetY / this.image_zoom + this.originY / this.image_zoom;
+
+
+
+			const old_zoom = this.image_zoom;
+			
+			console.log(event.offsetX / this.image_zoom, this.originX / this.image_zoom, mouseX);
+
+			if (event.deltaY < 0) {
+				this.image_zoom += scaleAmount;
+			} else {
+				if (this.image_zoom > 1.0) {
+					this.image_zoom -= scaleAmount;
+				}
+				else {
+					return;
+				}
+			}
+
+
+			this.originX = mouseX * this.image_zoom - event.offsetX;
+			this.originY = mouseY * this.image_zoom - event.offsetY;
+
+			console.log(mouseX, event.offsetX, this.originX);
+
+			this.drawCanvas();
+		},
 		loadImageFile(file) {
+			var self = this;
 			const reader = new FileReader();
 			reader.readAsDataURL(file);
 			var canvas = this.$refs.canvas;
 			reader.addEventListener("load", function() {
 				var img = new Image();
 				img.onload = () => {
-					var width = img.naturalWidth;
-					var height = img.naturalHeight;
-					canvas.width = width;
-					canvas.height = height;
-					canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+					self.image = img;
+					self.drawCanvas();
 				}
 				img.src = this.result;
 			});
@@ -331,8 +402,8 @@ export default {
 }
 
 #container {
-	width: 100%;
-	display: flex;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
 }
 
 #container > div {
@@ -368,13 +439,16 @@ export default {
 
 @media screen and (max-width: 700px) {
 	#container {
+		display: flex;
 		flex-direction: column;
 	}
+
 	#container > div {
 		padding: 10px;
 	}
-	#container > div:nth-child(2) {
-		order: -1;
+
+	#container > div:nth-child(1) {
+		order: 5;
 	}
 }
 
@@ -391,6 +465,7 @@ input[type="file"] {
 	border-radius: var(--input-border-radius);
 	line-height: calc(var(--input-height) - 2 * var(--input-border-size));
 	padding: 0px 8px;
+	color: transparent;
 }
 input[type="file"]::file-selector-button {
 	border: var(--input-border);
@@ -402,7 +477,7 @@ input[type="file"]::file-selector-button {
 
 #color-preview {
 	position: relative;
-	border-radius: 4px;
+	border-radius: 8px;
 	background: rgb(var(--color-r), var(--color-g), var(--color-b));
 	width: 100%;
 	height: 100px;
@@ -421,12 +496,43 @@ input[type="file"]::file-selector-button {
 	color: white;
 	background: black;
 	opacity: 50%;
+	white-space: nowrap;
+}
+
+.color-panel > span {
+	position: absolute;
+	right: 0;
+	top: 0;
+	padding: 4px 4px 4px 6px;
+	font-size: 10px;
+	border-radius: 0px 0px 0px 8px;
+	color: #aaaaaa;
+	background: var(--background-color2);
+	white-space: nowrap;
 }
 
 .color-panel {
 	position: relative;
 	border: 2px solid var(--background-color3);
 	height: 100px;
+	margin-bottom: 8px;
+	cursor: pointer;
+  	border-radius: 8px;
+}
+
+#pastedWrapper {
+	overflow: auto;
+	width: 100%;
+	border: 2px solid var(--background-color3);
+  	border-radius: 4px;
+	background: var(--background-color3);
+	max-height: 500px;
+}
+
+#pastedWrapper canvas {
+	display: block;
+	image-rendering: -webkit-optimize-contrast;
+	image-rendering: -moz-crisp-edges;
 }
 
 </style>
